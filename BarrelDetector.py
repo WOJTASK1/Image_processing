@@ -83,7 +83,9 @@ if __name__ == '__main__':
         path = "rozne/fake.JPG"
         detector = BarrelDetector(path)
         
-        result = detector.detect_barrels(100)
+        KERNEL_VALUE = 10
+        
+        result = detector.detect_barrels(KERNEL_VALUE)
         
         detector.draw_barrels(result)
         
