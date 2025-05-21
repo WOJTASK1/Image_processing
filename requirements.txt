@@ -1,0 +1,5 @@
+ExifRead==3.0.0
+haversine==2.8.1
+opencv_python==4.10.0.84
+numpy==2.1.2
+skimage==0.24.0
