@@ -1,0 +1,32 @@
+{
+  "BarrelDetectionConfig": {
+    "MINIMAL_AREA": 9000,
+    "MAXIMAL_AREA": 35000,
+    "LOWER_HSV": [
+      48,
+      50,
+      30
+    ],
+    "UPPER_HSV": [
+      159,
+      255,
+      190
+    ],
+    "KERNEL_SIZE": 10
+  },
+  "PipeDetectionConfig": {
+    "MINIMAL_AREA": 25000,
+    "MAXIMAL_AREA": 4800000,
+    "LOWER_HSV": [
+      0,
+      0,
+      179
+    ],
+    "UPPER_HSV": [
+      179,
+      226,
+      255
+    ],
+    "KERNEL_SIZE": 10
+  }
+}

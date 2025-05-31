@@ -1,36 +1,21 @@
 import cv2
 import numpy as np
+from cv2.typing import MatLike
 from skimage import measure
 import skimage.io as sk
-import matplotlib.pyplot as plt
 from DetectedObjects import DetectedObjects
 import os
+from test_visoncore import BarrelDetectionConfig,Config
 
 class BarrelDetector:
-    
-    mask = None
-    img = None
-    MINIMAL_BARREL_AREA = 9000
-    MAXIMAL_BARREL_AREA = 35000
-    
-    def __init__(self, path : str) -> None:
-        #self.img = sk.imread(path)
-        return
-        
-    def setImage(self, path : str) -> None:
-        if path is None or not isinstance(path, str):
-            raise ValueError("setImage: path must be a valid string")
-        self.img = sk.imread(path)
-        self.mask = None  # Reset mask when a new image is set
 
-    
     def treshold_hsv(self) -> None:
         if self.img is None or not isinstance(self.img, np.ndarray):
             raise ValueError("detect_barrels: mask and img cannot be None")
         
-        hsv = cv2.cvtColor(self.img, cv2.COLOR_RGB2HSV)
-        lower_hsv = np.array([48, 50, 30])
-        upper_hsv = np.array([159, 255, 190])
+        hsv = cv2.cvtColor(self.img, cv2.COLOR_BGR2HSV)
+        lower_hsv = np.array(BarrelDetectionConfig.LOWER_HSV)
+        upper_hsv = np.array(BarrelDetectionConfig.UPPER_HSV)
         self.mask = cv2.inRange(hsv, lower_hsv, upper_hsv)
        
     
@@ -43,14 +28,15 @@ class BarrelDetector:
         self.mask = cv2.morphologyEx(cleaned, cv2.MORPH_CLOSE, kernel)    
  
 
-    def detect_barrels(self,kernel_size: int = 7)->list:
-        
+    def detect_barrels(self,image : MatLike)->list:
+        self.img = image
+        self.mask = None
         self.treshold_hsv()
-        self.clean_mask(kernel_size)
+        self.clean_mask(BarrelDetectionConfig.KERNEL_SIZE)
 
         labeled_mask = measure.label(self.mask, connectivity=2)
         regions = measure.regionprops(labeled_mask)
-        #regions = [r for r in regions if self.MINIMAL_BARREL_AREA < r.area < self.MAXIMAL_BARREL_AREA]
+        
         if len(regions) == 0:
             print("None of the barrels have been detected!")
             return []
@@ -62,7 +48,7 @@ class BarrelDetector:
             centroid = (int(cx), int(cy))
             #print(f"Detected barrel at centroid: {centroid}, area: {region.area}")
             region_mask = (labeled_mask == region.label).astype(np.uint8) * 255
-            if region.area < self.MINIMAL_BARREL_AREA or region.area > self.MAXIMAL_BARREL_AREA:
+            if region.area < BarrelDetectionConfig.MINIMAL_AREA or region.area > BarrelDetectionConfig.MAXIMAL_AREA:
                 continue
                 
             contours, _ = cv2.findContours(region_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
@@ -73,7 +59,7 @@ class BarrelDetector:
       
         return barrels
     
-    def draw_barrels(self,barrels,path) -> np.ndarray:
+    def draw_barrels(self,barrels) -> np.ndarray:
         
         output_img = self.img.copy()
         if barrels is not None:
@@ -81,14 +67,11 @@ class BarrelDetector:
 
                 if barrel.contour is None or barrel.centroid is None:
                     continue
-                cv2.drawContours(output_img, [barrel.contour], -1, (255, 0, 0), 2)
+                cv2.drawContours(output_img, [barrel.contour], -1, (255, 0, 255), 10)
                 cv2.circle(output_img, barrel.centroid, 25, (255, 255, 255), -1)
-            
-        plt.figure(figsize=(10, 5))
-        plt.imshow(output_img)
-        plt.title(f'Wykryte beczki i kontury+{path}')
-        plt.axis('off')
-        plt.show()
+        output_img = cv2.resize(output_img, (0, 0), fx=1/5, fy=1/5)
+        cv2.imshow("Detected Barrels", output_img)
+        cv2.waitKey(0)
 
 
 
@@ -98,27 +81,28 @@ def readImagesFromFolder(folder_path):
     for filename in os.listdir(folder_path):
         if filename.endswith(".jpg") or filename.endswith(".png") or filename.endswith(".JPG"):
             img_path = os.path.join(folder_path, filename)
-            #img = sk.imread(img_path)
             images.append(img_path)
     return images
 
 if __name__ == '__main__':
+    Config.load("PipeBarrelDetector")
     try:
         path = "rozne/fake.JPG"
         folder_path = "/home/wojtek/Documents/uczelnia/RAPTORS/Droniada/beczki"
       
         images = readImagesFromFolder(folder_path)
         images.append(path)
-        detector = BarrelDetector(path) 
+        detector = BarrelDetector() 
         
-        print("Liczba obrazów w folderze:", len(images))
         for img_path in images:
             print("#########\nWykrywanie beczek w obrazie:", img_path)
-            detector.setImage(img_path)
-            
-            result = detector.detect_barrels(kernel_size=10)
+            img = cv2.imread(img_path)
+            if img is None:
+                print("Nie można wczytać obrazu:", img_path)
+                continue
+            result = detector.detect_barrels(img)
     
-            detector.draw_barrels(result, img_path)
+            detector.draw_barrels(result)
             if result is None or len(result) == 0:
                 print("Brak beczek w obrazie:", img_path)
                 continue
@@ -128,6 +112,8 @@ if __name__ == '__main__':
             
     except Exception as e:
         print("Wystąpił błąd:", e)
-
+    finally:
+        cv2.destroyAllWindows
+        cv2.waitKey(1)
 
     
